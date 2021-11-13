@@ -1,19 +1,29 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+/*
+* Estrutura para armazenar os dados de entrada
+*/
 typedef struct{
     double LX, LY, DT, G, f, m, Err;
     int NX, NY;
 } DataIn;
 
+/*
+* Estrutura para armazenar os valores de a, b e c
+*/
+
 typedef struct{
-    double a;
-    double b;
-    double c;
-    double d;
+    double a; //deverá ser um vetor dinâmico
+    double b; //precisa de um vetor? acho que os valores são sempre os mesmos
+    double c; //precisa de um vetor? acho que os valores são sempre os mesmos
+    double d; //deverá ser um vetor dinâmico
 } DataArrays;
 
-
+/*
+*  Função para pegar os dados de entrada
+*  Deverá pegar esses dados de um arquivo
+*/
 DataIn getDataIn(){
     DataIn di;
 
@@ -30,18 +40,25 @@ DataIn getDataIn(){
     return di;
 }
 
+/*
+*   Calcula as diagonais
+*/
 DataArrays caculateData(DataIn in){
     DataArrays da;
 
-    //da.b = -1/((in.LX/in.NX)*(in.LX/in.NX));
-    //da.c = -1/((in.LY/in.NY)*(in.LY/in.NY));
-    da.a = 1;
-    da.b = 2;
-    da.c = 3;
+    //dúvida: os valores de b e c são sempre iguais? precisa criar vetor?
+    da.b = -1/((in.LX/in.NX)*(in.LX/in.NX));
+    da.c = -1/((in.LY/in.NY)*(in.LY/in.NY));
+    da.a = 1; //todo
+    //da.b = 2;
+    //da.c = 3;
 
     return da;
 }
 
+/*
+*   Para gerar um arquivo CSV com a matriz. Para fins de visualização e teste
+*/
 void generateCSVMatriz(int n, DataArrays data, char * filename, char * separator){
     FILE *fp;
     int i,j;
@@ -73,6 +90,9 @@ void generateCSVMatriz(int n, DataArrays data, char * filename, char * separator
 
 }
 
+/*
+*   Imprime a matriz no prompt
+*/
 void printmatriz(int n, DataArrays data){
     int i,j;
 
@@ -106,6 +126,7 @@ int main(void){
     entrada = getDataIn();
     valores_matriz = caculateData(entrada);
 
+    //criando um arquivo CSV na raiz do executável para visualizar a matriz
     generateCSVMatriz(entrada.NX, valores_matriz, "teste.csv",";");
 
     return 0;

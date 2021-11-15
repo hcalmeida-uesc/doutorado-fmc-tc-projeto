@@ -19,7 +19,8 @@ typedef struct{
     double* a;
     double b; //precisa de um vetor? acho que os valores são sempre os mesmos
     double c; //precisa de um vetor? acho que os valores são sempre os mesmos
-    double d; //deverá ser um vetor dinâmico
+    double* d; //deverá ser um vetor dinâmico
+    double* x; //deverá ser um vetor dinâmico
 } DataArrays;
 
 /*
@@ -29,13 +30,13 @@ typedef struct{
 DataIn getDataIn(){
     DataIn di;
 
-    di.n = 6;
+    di.n = 5;
     di.LX = 4;
     di.LY = 8;
     di.DT = 1;
     di.G = 0;
-    di.f = 0;
-    di.m = 0;
+    di.f = 1;
+    di.m = 2;
     di.Err = 0;
     di.NX = di.n;
     di.NY = di.n;
@@ -61,7 +62,7 @@ double roundCases(double x, int n){
 /*
 *   Calcula as diagonais
 */
-DataArrays initializeABC(DataIn in){
+DataArrays initializeABCD(DataIn in){
     DataArrays da;
     int i, j,tam;
 
@@ -101,11 +102,14 @@ DataArrays initializeABC(DataIn in){
             *(da.a+j) += 2*fabs(da.b) + 2*fabs(da.c);
     }
 
-    /*
-    for(i=1; i<tam-1;i++){
-         *(da.a+i) = i;
-    }
-    */
+
+    da.d = calloc(tam, sizeof(double));
+
+    for(i=0; i<tam; i++)
+        da.d[i] = in.f;
+
+    da.d[((tam-2)/2)+1] = in.f - in.m;
+
     return da;
 }
 
@@ -121,11 +125,12 @@ void generateCSVMatriz(int n, DataArrays data, char * filename, char * separator
         exit(-1);
     }
 
-    fprintf(fp, " %s",separator);
+    fprintf(fp, "A%s",separator);
     for(i=0; i<n*n; i++)
         fprintf(fp, "%d%s",i,separator);
 
-    fprintf(fp, "\n");
+    fprintf(fp, "%s%s%s%s%s%s\n","*",separator,"x",separator,"=",separator,"d");
+
     for(i=0; i<n*n; i++){
         fprintf(fp, "%d%s",i,separator);
         for(j=0; j<n*n; j++){
@@ -138,9 +143,15 @@ void generateCSVMatriz(int n, DataArrays data, char * filename, char * separator
             else
                 fprintf(fp, "%s%s"," ",separator);
         }
+        fprintf(fp, "%s%s%s%d%s%s%s%.*lf","*",separator,"x",i,separator,"=",separator, DC, data.d[i]);
+
         fprintf(fp, "\n");
     }
 
+
+
+
+    fclose(fp);
 }
 
 /*
@@ -177,9 +188,7 @@ int main(void){
     DataArrays valores_matriz;
 
     entrada = getDataIn();
-    valores_matriz = initializeABC(entrada);
-
-    printf("%lf", roundCases(0.03435423, 2));
+    valores_matriz = initializeABCD(entrada);
 
     //criando um arquivo CSV na raiz do executável para visualizar a matriz
     generateCSVMatriz(entrada.NX, valores_matriz, "teste.csv",";");

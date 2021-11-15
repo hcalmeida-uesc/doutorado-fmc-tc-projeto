@@ -1,11 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define DC 2
+
 /*
 * Estrutura para armazenar os dados de entrada
 */
 typedef struct{
-    double LX, LY, DT, G, f, m, Err;
+    double n, LX, LY, DT, G, f, m, Err;
     int NX, NY;
 } DataIn;
 
@@ -27,6 +29,7 @@ typedef struct{
 DataIn getDataIn(){
     DataIn di;
 
+    di.n = 6;
     di.LX = 4;
     di.LY = 8;
     di.DT = 1;
@@ -34,10 +37,25 @@ DataIn getDataIn(){
     di.f = 0;
     di.m = 0;
     di.Err = 0;
-    di.NX = 3;
-    di.NY = 3;
+    di.NX = di.n;
+    di.NY = di.n;
 
     return di;
+}
+
+/*
+*   Função para arredondamento do double 'x' em 'n' casas
+*/
+
+double roundCases(double x, int n){
+    unsigned int mult = 1;
+
+    while(n > 0){
+        mult *= 10;
+        n--;
+    }
+
+    return round(x*mult)/mult;
 }
 
 /*
@@ -112,11 +130,11 @@ void generateCSVMatriz(int n, DataArrays data, char * filename, char * separator
         fprintf(fp, "%d%s",i,separator);
         for(j=0; j<n*n; j++){
             if(i==j)
-                fprintf(fp, "%.1lf%s",data.a[j],separator);
+                fprintf(fp, "%.*lf%s", DC, data.a[j], separator);
             else if(((i==j+1) && (i%(n)!=0)) || ((j==i+1) && (j%(n)!=0)))
-                fprintf(fp, "%.1lf%s",data.b,separator);
+                fprintf(fp, "%.*lf%s",DC, data.b,separator);
             else if(i==j+n || j==i+n)
-                fprintf(fp, "%.1lf%s",data.c,separator);
+                fprintf(fp, "%.*lf%s",DC, data.c,separator);
             else
                 fprintf(fp, "%s%s"," ",separator);
         }
@@ -140,11 +158,11 @@ void printmatriz(int n, DataArrays data){
         printf("%2d%8s",i," ");
         for(j=0; j<n*n; j++){
             if(i==j)
-                printf("%8.1lf",data.a[j]);
+                printf("%8.lf",data.a[j]);
             else if(((i==j+1) && (i%(n)!=0)) || ((j==i+1) && (j%(n)!=0)))
-                printf("%8.1lf",data.b);
+                printf("%8.lf",data.b);
             else if(i==j+n || j==i+n)
-                printf("%8.1lf",data.c);
+                printf("%8.lf",data.c);
             else
                 printf("%8s","0");
         }
@@ -161,9 +179,11 @@ int main(void){
     entrada = getDataIn();
     valores_matriz = initializeABC(entrada);
 
+    printf("%lf", roundCases(0.03435423, 2));
+
     //criando um arquivo CSV na raiz do executável para visualizar a matriz
     generateCSVMatriz(entrada.NX, valores_matriz, "teste.csv",";");
-    printmatriz(entrada.NX, valores_matriz);
+    //printmatriz(entrada.NX, valores_matriz);
 
     return 0;
 

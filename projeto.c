@@ -14,7 +14,7 @@ typedef struct{
 */
 
 typedef struct{
-    double a; //deverá ser um vetor dinâmico
+    double* a;
     double b; //precisa de um vetor? acho que os valores são sempre os mesmos
     double c; //precisa de um vetor? acho que os valores são sempre os mesmos
     double d; //deverá ser um vetor dinâmico
@@ -27,15 +27,15 @@ typedef struct{
 DataIn getDataIn(){
     DataIn di;
 
-    di.LX = 3;
-    di.LY = 3;
+    di.LX = 4;
+    di.LY = 8;
     di.DT = 1;
-    di.G = 1;
+    di.G = 0;
     di.f = 0;
     di.m = 0;
     di.Err = 0;
-    di.NX = 4;
-    di.NY = 4;
+    di.NX = 3;
+    di.NY = 3;
 
     return di;
 }
@@ -43,16 +43,51 @@ DataIn getDataIn(){
 /*
 *   Calcula as diagonais
 */
-DataArrays caculateData(DataIn in){
+DataArrays initializeABC(DataIn in){
     DataArrays da;
+    int i, j,tam;
+
+    tam = in.NX*in.NX;
 
     //dúvida: os valores de b e c são sempre iguais? precisa criar vetor?
     da.b = -1/((in.LX/in.NX)*(in.LX/in.NX));
     da.c = -1/((in.LY/in.NY)*(in.LY/in.NY));
-    da.a = 1; //todo
-    //da.b = 2;
-    //da.c = 3;
 
+    //alocando os elementos do vetor da diagonal principal
+    da.a = calloc(tam, sizeof(double));
+    //inicializando todos os elementos iguais a G/DT
+    for(i=0; i<tam;i++)
+        *(da.a+i) = in.G/in.DT;
+
+    //primeira e última linha da matriz têm mesma lógica.
+    da.a[0] += fabs(da.b) + fabs(da.c);
+    da.a[tam-1] += fabs(da.b) + fabs(da.c);
+
+    da.a[tam-1] = da.a[in.NX-1] = da.a[tam-in.NX] = da.a[0];
+
+    //da segunda até a (NX-1)-ésima e da (N-NX+2)-ésima até (N-1)-ésima linha
+    for(i=1, j=tam-2; i<in.NX-1;i++, j--){
+        *(da.a+i) += 2*fabs(da.b) + fabs(da.c);
+        *(da.a+j) += 2*fabs(da.b) + fabs(da.c);
+    }
+
+    //primeiras e últimas linhas dos dois subgrupos restantes
+    for(i=in.NX, j=2*in.NX-1; i<tam-in.NX;i+=in.NX, j+=in.NX){
+        *(da.a+i) += fabs(da.b) + 2*fabs(da.c);
+        *(da.a+j) += fabs(da.b) + 2*fabs(da.c);
+    }
+
+    //Restante da linha que são divididas em n-2 grupos
+    for(i=1; i<=in.NX-2; i++){
+        for(j=(i*in.NX)+1; j<(i+1)*in.NX-1; j++)
+            *(da.a+j) += 2*fabs(da.b) + 2*fabs(da.c);
+    }
+
+    /*
+    for(i=1; i<tam-1;i++){
+         *(da.a+i) = i;
+    }
+    */
     return da;
 }
 
@@ -77,7 +112,7 @@ void generateCSVMatriz(int n, DataArrays data, char * filename, char * separator
         fprintf(fp, "%d%s",i,separator);
         for(j=0; j<n*n; j++){
             if(i==j)
-                fprintf(fp, "%.1lf%s",data.a,separator);
+                fprintf(fp, "%.1lf%s",data.a[j],separator);
             else if(((i==j+1) && (i%(n)!=0)) || ((j==i+1) && (j%(n)!=0)))
                 fprintf(fp, "%.1lf%s",data.b,separator);
             else if(i==j+n || j==i+n)
@@ -96,7 +131,7 @@ void generateCSVMatriz(int n, DataArrays data, char * filename, char * separator
 void printmatriz(int n, DataArrays data){
     int i,j;
 
-    printf("      ");
+    printf("%10s"," ");
     for(i=0; i<n*n; i++)
         printf("%8d",i);
 
@@ -105,7 +140,7 @@ void printmatriz(int n, DataArrays data){
         printf("%2d%8s",i," ");
         for(j=0; j<n*n; j++){
             if(i==j)
-                printf("%8s","a");
+                printf("%8.1lf",data.a[j]);
             else if(((i==j+1) && (i%(n)!=0)) || ((j==i+1) && (j%(n)!=0)))
                 printf("%8.1lf",data.b);
             else if(i==j+n || j==i+n)
@@ -124,10 +159,11 @@ int main(void){
     DataArrays valores_matriz;
 
     entrada = getDataIn();
-    valores_matriz = caculateData(entrada);
+    valores_matriz = initializeABC(entrada);
 
     //criando um arquivo CSV na raiz do executável para visualizar a matriz
     generateCSVMatriz(entrada.NX, valores_matriz, "teste.csv",";");
+    printmatriz(entrada.NX, valores_matriz);
 
     return 0;
 

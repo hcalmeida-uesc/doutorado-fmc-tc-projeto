@@ -3,6 +3,7 @@
 #include <locale.h>
 #include <math.h>
 
+//casas decimais
 #define DC 20
 
 /*
@@ -16,6 +17,8 @@ typedef struct{
 typedef struct{
     double absErr;
     int interations;
+    double* xk; //vetor x(k) com chute inicial
+    double* xkm1; //vetor x(k+1) com cada aproximação
 } DataOut;
 
 /*
@@ -23,55 +26,83 @@ typedef struct{
 */
 
 typedef struct{
-    double* a;
-    double* b; //precisa de um vetor? acho que os valores são sempre os mesmos
-    double* c; //precisa de um vetor? acho que os valores são sempre os mesmos
-    double* d; //deverá ser um vetor dinâmico
-    double* x; //deverá ser um vetor dinâmico
-    double* xk; //deverá ser um vetor dinâmico
+    double* a; //vetor da diagonal principal
+    double* b; //vetor da diagonal b
+    double* c; //vetor da diagonal c
+    double* d; //vetor de resultados d
 } DataArrays;
 
 /*
-*  Função para pegar os dados de entrada
-*  Deverá pegar esses dados de um arquivo
-*/
-DataIn getDataIn(){
-    DataIn di;
+    Função para pegar os dados de entrada
+    de um arquivo, um por linha, na ordem:
+    n           - inteiro
+    w(omega)    - double
+    LX          - couble
+    LY          - couble
+    DT          - couble
+    G           - couble
+    f           - couble
+    m           - couble
+    E (erro)    - couble
 
-    di.w = 1;
-    di.n = 5;
-    di.LX = 4;
-    di.LY = 8;
-    di.DT = 1;
-    di.G = 1;
-    di.f = 1.0;
-    di.m = 2.0;
-    di.Err = 0;
+*/
+DataIn getDataIn(char* filename){
+    DataIn di;
+    FILE* fin;
+
+    if((fin=fopen(filename,"r"))==NULL){
+        printf("Ero na abertura do arquivo %s",filename);
+        exit(-1);
+    }
+
+    fscanf(fin,"%d\n", &di.n);
+    fscanf(fin,"%lf\n", &di.w);
+    fscanf(fin,"%lf\n", &di.LX);
+    fscanf(fin,"%lf\n", &di.LY);
+    fscanf(fin,"%lf\n", &di.DT);
+    fscanf(fin,"%lf\n", &di.G);
+    fscanf(fin,"%lf\n", &di.f);
+    fscanf(fin,"%lf\n", &di.m);
+    fscanf(fin,"%lf", &di.Err);
+
+    fclose(fin);
+
     di.NX = di.n;
     di.NY = di.n;
+
 
     return di;
 }
 
+
 /*
-*   Função para arredondamento do double 'x' em 'n' casas
+    Função para salvar os dados de saída em um arquivo
 */
 
-double roundCases(double x, int n){
-    unsigned int mult = 1;
+void saveDataOut(char* filename, DataOut dout, int tam){
+    FILE* fout;
+    int i;
 
-    while(n > 0){
-        mult *= 10;
-        n--;
+    if((fout=fopen(filename,"w"))==NULL){
+        printf("Ero na criação do arquivo %s",filename);
+        exit(-1);
     }
 
-    return round(x*mult)/mult;
+    fprintf(fout,"\nErro alcançado: %10.8lf\n", dout.absErr);
+    fprintf(fout,"Interações: %10d\n", dout.interations);
+    fprintf(fout,"\nVetor X:\n");
+    for(i=0; i<tam; i++){
+        fprintf(fout,"x(%2d)=%10.8lf\n",i,dout.xkm1[i]);
+    }
+    fprintf(fout,"------------------------------");
+    fclose(fout);
+
 }
 
 /*
 *   Calcula as diagonais
 */
-DataArrays initializeABCD(DataIn in){
+DataArrays initDiagonals(DataIn in){
     DataArrays da;
     int i, j, tam;
     double aux;
@@ -86,12 +117,6 @@ DataArrays initializeABCD(DataIn in){
     //alocando memória para o vetor d e iniciando com 0
     da.d = calloc(tam, sizeof(double));
 
-    //alocando memória para o vetor x e iniciando com 0
-    da.x = calloc(tam, sizeof(double));
-
-    //alocando memória para o vetor x e iniciando com 0
-    da.xk = calloc(tam, sizeof(double));
-
     /*
         dúvida: os valores de b e c são sempre iguais? precisa criar vetor?
         Para facilitar a lógica do algoritmo SOR é melhor criar os vetores
@@ -103,7 +128,7 @@ DataArrays initializeABCD(DataIn in){
         da.b[i] = 0.0;
 
     aux = -1/((in.LY/in.NY)*(in.LY/in.NY));
-    for(i=0; i<tam-1; i++)
+    for(i=0; i<tam-in.NY; i++)
         da.c[i] = aux;
 
     //inicializando todos os elementos da diagonal principal iguais a G/DT
@@ -140,8 +165,24 @@ DataArrays initializeABCD(DataIn in){
 }
 
 /*
-    TODO: função para calcular o erro absoluto
+    Função para calcular o erro absoluto
 */
+
+double absoluteError(double* xk, double* xk1, int tam){
+    int i;
+    double maxErr, err;
+
+    maxErr = fabs(xk1[0]-xk[0]);
+
+    for(i=1; i<tam; i++){
+        err = fabs(xk1[1]-xk[1]);
+
+        if(err > maxErr)
+            maxErr = err;
+    }
+
+    return maxErr;
+}
 
 
 /*
@@ -151,29 +192,44 @@ DataOut SORModif(DataArrays da, DataIn in, int maxInterations){
     int i, tam;
     DataOut out;
 
+
+    //alocando memória para o vetor x(k) e iniciando com 0
+    out.xk = calloc(tam, sizeof(double));
+
+    //alocando memória para o vetor x(k+1) e iniciando com 0
+    out.xkm1 = calloc(tam, sizeof(double));
+
     tam = in.n*in.n;
 
     out.interations = 0;
     while(out.interations++ < maxInterations){
 
+        // salvando os valores de x(k+1) em x(k) para cálculo do erro da rodada
         for(i=0; i<tam; i++)
-            da.x[i] = da.xk[i];
+            out.xk[i] = out.xkm1[i];
 
-        da.xk[0] = (in.w/da.a[0])*(da.d[0]-da.b[0]*da.xk[1] - da.c[0]*da.xk[in.NY])-(in.w-1)*da.xk[0];
+        //cálculo da primeira linha - x[0](k+1)
+        out.xkm1[0] = (in.w/da.a[0])*(da.d[0]-da.b[0]*out.xkm1[1] - da.c[0]*out.xkm1[in.NY])-(in.w-1)*out.xkm1[0];
 
+        //cálculo da segunda até (NX-1)-ésima linha - x[1](k+1) : x[NX-1](k+1)
         for(i=1; i<in.NX; i++){
-            da.xk[i] = (in.w/da.a[i])*(da.d[i]-da.b[i-1]*da.xk[i-1] - da.b[i]*da.xk[i+1] - da.c[i]*da.xk[in.NY+1])-(in.w-1)*da.xk[i];
+            out.xkm1[i] = (in.w/da.a[i])*(da.d[i]-da.b[i-1]*out.xkm1[i-1] - da.b[i]*out.xkm1[i+1] - da.c[i]*out.xkm1[in.NY+1])-(in.w-1)*out.xkm1[i];
         }
 
+        //cálculo da (NX)-ésima até (NX*NY-NX-1)-ésima linha - x[NX](k+1) : x[NX*NY-NX-1](k+1)
         for(; i<tam-in.n; i++)
-            da.xk[i] = (in.w/da.a[i])*(da.d[i]-da.b[i-1]*da.xk[i-1] - da.b[i]*da.xk[i+1] - da.c[i-in.NY]*da.xk[i-in.NY] - da.c[i]*da.xk[in.NY+1])-(in.w-1)*da.xk[i];
+            out.xkm1[i] = (in.w/da.a[i])*(da.d[i]-da.b[i-1]*out.xkm1[i-1] - da.b[i]*out.xkm1[i+1] - da.c[i-in.NY]*out.xkm1[i-in.NY] - da.c[i]*out.xkm1[in.NY+1])-(in.w-1)*out.xkm1[i];
 
+        //cálculo da (NX*NY-NX)-ésima até (NX*NY-2)-ésima linha - x[NX*NY-NX](k+1) : x[NX*NY-2](k+1)
         for(; i<tam-1; i++)
-            da.xk[i] = (in.w/da.a[i])*(da.d[i]-da.b[i-1]*da.xk[i-1] - da.b[i]*da.xk[i+1] - da.c[i-in.NY]*da.xk[i-in.NY])-(in.w-1)*da.xk[i];
+            out.xkm1[i] = (in.w/da.a[i])*(da.d[i]-da.b[i-1]*out.xkm1[i-1] - da.b[i]*out.xkm1[i+1] - da.c[i-in.NY]*out.xkm1[i-in.NY])-(in.w-1)*out.xkm1[i];
 
-        da.xk[i] = (in.w/da.a[i])*(da.d[i]-da.b[i-1]*da.xk[i-1] - da.c[i-in.NY]*da.xk[i-in.NY])-(in.w-1)*da.xk[i];
+        //cálculo da última linha - x[NX*NY-1](k+1)
+        out.xkm1[i] = (in.w/da.a[i])*(da.d[i]-da.b[i-1]*out.xkm1[i-1] - da.c[i-in.NY]*out.xkm1[i-in.NY])-(in.w-1)*out.xkm1[i];
 
-//        TODO: calcular o erro absoluto entre x e xk e armazenar em out.absErr
+        //calculando o erro e absoluto e saindo do laço caso tenha atingido
+        out.absErr = absoluteError(out.xk, out.xkm1, tam);
+        if(out.absErr <= in.Err) break;
 
     }
 
@@ -216,7 +272,7 @@ void generateCSVMatriz(int n, DataArrays data, DataOut out, char * filename, cha
             else
                 fprintf(fp, "%s%s","0",separator);
         }
-        fprintf(fp, "%s%s%.*lf%s%.*lf%s%s%s%.*lf"," ",separator,DC,data.x[i],separator,DC,data.xk[i],separator," ",separator,DC,data.d[i]);
+        fprintf(fp, "%s%s%.*lf%s%.*lf%s%s%s%.*lf"," ",separator,DC,out.xk[i],separator,DC,out.xkm1[i],separator," ",separator,DC,data.d[i]);
 
 
         fprintf(fp, "\n");
@@ -227,6 +283,12 @@ void generateCSVMatriz(int n, DataArrays data, DataOut out, char * filename, cha
         fprintf(fp, "%s",separator);
 
     fprintf(fp, "%s%s%d","Interações",separator,out.interations);
+
+    fprintf(fp, "\n");
+    for(i=0; i<n*n+2; i++)
+        fprintf(fp, "%s",separator);
+
+    fprintf(fp, "%s%s%lf","Erro",separator,out.absErr);
 
     fclose(fp);
 }
@@ -264,14 +326,15 @@ void printmatriz(int n, DataArrays data){
 }
 
 int main(void){
-    setlocale(LC_ALL, "Portuguese");
+    setlocale(LC_ALL, "Portuguese"); //para usar a , ao invés de . no decimal. Inclusive no arquivo de entrada
     DataIn entrada;
     DataOut saida;
     DataArrays valores_matriz;
 
-    entrada = getDataIn();
-    valores_matriz = initializeABCD(entrada);
+    entrada = getDataIn("entrada.txt");
+    valores_matriz = initDiagonals(entrada);
     saida = SORModif(valores_matriz,entrada,50);
+    saveDataOut("saida.txt",saida,entrada.n*entrada.n);
     //criando um arquivo CSV na raiz do executável para visualizar a matriz
     generateCSVMatriz(entrada.NX, valores_matriz, saida, "teste.csv",";");
     //printmatriz(entrada.NX, valores_matriz);

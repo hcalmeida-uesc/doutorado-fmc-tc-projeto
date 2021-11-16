@@ -1,19 +1,21 @@
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <locale.h>
-#include <math.h>
 
 //casas decimais
-#define DC 20
+#define DC 8
 
 /*
-* Estrutura para armazenar os dados de entrada
+    Estrutura para armazenar os dados de entrada
 */
 typedef struct{
     double w, LX, LY, DT, G, f, m, Err;
     int n, NX, NY;
 } DataIn;
 
+/*
+    Estrutura para armazenar os dados de saída
+*/
 typedef struct{
     double absErr;
     int interations;
@@ -22,7 +24,7 @@ typedef struct{
 } DataOut;
 
 /*
-* Estrutura para armazenar os valores de a, b e c
+    Estrutura para armazenar os valores de a, b e c
 */
 
 typedef struct{
@@ -291,54 +293,4 @@ void generateCSVMatriz(int n, DataArrays data, DataOut out, char * filename, cha
     fprintf(fp, "%s%s%lf","Erro",separator,out.absErr);
 
     fclose(fp);
-}
-
-/*
-*   Imprime a matriz no prompt
-*/
-void printmatriz(int n, DataArrays data){
-    int i,j;
-
-    printf("%10s"," ");
-    for(i=0; i<n*n; i++)
-        printf("%8d",i);
-
-    printf("\n\n");
-    for(i=0; i<n*n; i++){
-        printf("%2d%8s",i," ");
-        for(j=0; j<n*n; j++){
-            if(i==j)
-                printf("%.*lf", DC, data.a[i]);
-            else if(j==i+1)
-                printf("%.*lf%s",DC, data.b[i]);
-            else if(i==j+1)
-                printf("%.*lf%s",DC, data.b[j]);
-            else if(i==j+n)
-                printf("%.*lf%s",DC, data.c[j]);
-            else if(j==i+n)
-                printf("%.*lf%s",DC, data.c[i]);
-            else
-                printf("%s%s"," ");
-        }
-        printf("\n\n");
-    }
-
-}
-
-int main(void){
-    setlocale(LC_ALL, "Portuguese"); //para usar a , ao invés de . no decimal. Inclusive no arquivo de entrada
-    DataIn entrada;
-    DataOut saida;
-    DataArrays valores_matriz;
-
-    entrada = getDataIn("entrada.txt");
-    valores_matriz = initDiagonals(entrada);
-    saida = SORModif(valores_matriz,entrada,50);
-    saveDataOut("saida.txt",saida,entrada.n*entrada.n);
-    //criando um arquivo CSV na raiz do executável para visualizar a matriz
-    generateCSVMatriz(entrada.NX, valores_matriz, saida, "teste.csv",";");
-    //printmatriz(entrada.NX, valores_matriz);
-
-    return 0;
-
 }

@@ -3,7 +3,7 @@
 #include <locale.h>
 #include <math.h>
 
-#define DC 4
+#define DC 20
 
 /*
 * Estrutura para armazenar os dados de entrada
@@ -12,6 +12,11 @@ typedef struct{
     double w, LX, LY, DT, G, f, m, Err;
     int n, NX, NY;
 } DataIn;
+
+typedef struct{
+    double absErr;
+    int interations;
+} DataOut;
 
 /*
 * Estrutura para armazenar os valores de a, b e c
@@ -23,6 +28,7 @@ typedef struct{
     double* c; //precisa de um vetor? acho que os valores são sempre os mesmos
     double* d; //deverá ser um vetor dinâmico
     double* x; //deverá ser um vetor dinâmico
+    double* xk; //deverá ser um vetor dinâmico
 } DataArrays;
 
 /*
@@ -83,6 +89,9 @@ DataArrays initializeABCD(DataIn in){
     //alocando memória para o vetor x e iniciando com 0
     da.x = calloc(tam, sizeof(double));
 
+    //alocando memória para o vetor x e iniciando com 0
+    da.xk = calloc(tam, sizeof(double));
+
     /*
         dúvida: os valores de b e c são sempre iguais? precisa criar vetor?
         Para facilitar a lógica do algoritmo SOR é melhor criar os vetores
@@ -130,29 +139,53 @@ DataArrays initializeABCD(DataIn in){
     return da;
 }
 
-double* SORModif(DataArrays da, DataIn in){
-   /* int i, tam;
+/*
+    TODO: função para calcular o erro absoluto
+*/
+
+
+/*
+    Algoritmo SOR Modificado para o escopo do projeto
+*/
+DataOut SORModif(DataArrays da, DataIn in, int maxInterations){
+    int i, tam;
+    DataOut out;
 
     tam = in.n*in.n;
 
-    for(i=0; i<tam; i++)
-        da.x[i] = (in.w/da.a[i]);
+    out.interations = 0;
+    while(out.interations++ < maxInterations){
 
-    //primeira linha do vetor x têm a mesma lógica.
-    da.x[0] *= (da.d[0]-(da.b[0]*da.x[1] + da.c[0]*da.x[in.NY]));
-    /*
-    for(i=1; i<in.NX; i++){
-        da.x[i] *= (da.d[i]-(da.b[i-1]*da.x[i-1] + da.c[0]*da.x[in.NY]));
+        for(i=0; i<tam; i++)
+            da.x[i] = da.xk[i];
+
+        da.xk[0] = (in.w/da.a[0])*(da.d[0]-da.b[0]*da.xk[1] - da.c[0]*da.xk[in.NY])-(in.w-1)*da.xk[0];
+
+        for(i=1; i<in.NX; i++){
+            da.xk[i] = (in.w/da.a[i])*(da.d[i]-da.b[i-1]*da.xk[i-1] - da.b[i]*da.xk[i+1] - da.c[i]*da.xk[in.NY+1])-(in.w-1)*da.xk[i];
+        }
+
+        for(; i<tam-in.n; i++)
+            da.xk[i] = (in.w/da.a[i])*(da.d[i]-da.b[i-1]*da.xk[i-1] - da.b[i]*da.xk[i+1] - da.c[i-in.NY]*da.xk[i-in.NY] - da.c[i]*da.xk[in.NY+1])-(in.w-1)*da.xk[i];
+
+        for(; i<tam-1; i++)
+            da.xk[i] = (in.w/da.a[i])*(da.d[i]-da.b[i-1]*da.xk[i-1] - da.b[i]*da.xk[i+1] - da.c[i-in.NY]*da.xk[i-in.NY])-(in.w-1)*da.xk[i];
+
+        da.xk[i] = (in.w/da.a[i])*(da.d[i]-da.b[i-1]*da.xk[i-1] - da.c[i-in.NY]*da.xk[i-in.NY])-(in.w-1)*da.xk[i];
+
+//        TODO: calcular o erro absoluto entre x e xk e armazenar em out.absErr
+
     }
 
-*/
-    return da.x;
+    out.interations--;
+
+    return out;
 }
 
 /*
 *   Para gerar um arquivo CSV com a matriz. Para fins de visualização e teste
 */
-void generateCSVMatriz(int n, DataArrays data, char * filename, char * separator){
+void generateCSVMatriz(int n, DataArrays data, DataOut out, char * filename, char * separator){
     FILE *fp;
     int i,j;
 
@@ -163,30 +196,37 @@ void generateCSVMatriz(int n, DataArrays data, char * filename, char * separator
 
     fprintf(fp, "A%s",separator);
     for(i=0; i<n*n; i++)
-        fprintf(fp, "%10d%s",i,separator);
+        fprintf(fp, "%d%s",i,separator);
 
-    fprintf(fp, "%s%s%s%s%s%s%s\n","*",separator,"x",separator,"=",separator,"d");
+    fprintf(fp, "%s%s%s%s%s%s%s%s%s\n"," ",separator,"x",separator,"xk",separator," ",separator,"d");
 
     for(i=0; i<n*n; i++){
         fprintf(fp, "%d%s",i,separator);
         for(j=0; j<n*n; j++){
             if(i==j)
-                fprintf(fp, "%10.*lf%s", DC, data.a[i], separator);
+                fprintf(fp, "%.*lf%s", DC, data.a[i], separator);
             else if(j==i+1)
-                fprintf(fp, "%10.*lf%s",DC, data.b[i],separator);
+                fprintf(fp, "%.*lf%s",DC, data.b[i],separator);
             else if(i==j+1)
-                fprintf(fp, "%10.*lf%s",DC, data.b[j],separator);
+                fprintf(fp, "%.*lf%s",DC, data.b[j],separator);
             else if(i==j+n)
-                fprintf(fp, "%10.*lf%s",DC, data.c[j],separator);
+                fprintf(fp, "%.*lf%s",DC, data.c[j],separator);
             else if(j==i+n)
-                fprintf(fp, "%10.*lf%s",DC, data.c[i],separator);
+                fprintf(fp, "%.*lf%s",DC, data.c[i],separator);
             else
-                fprintf(fp, "%s%s"," ",separator);
+                fprintf(fp, "%s%s","0",separator);
         }
-        fprintf(fp, "%s%s%10.*lf%s%s%s%10.*lf","*",separator,DC,data.x[i],separator,"=",separator,DC,data.d[i]);
+        fprintf(fp, "%s%s%.*lf%s%.*lf%s%s%s%.*lf"," ",separator,DC,data.x[i],separator,DC,data.xk[i],separator," ",separator,DC,data.d[i]);
+
 
         fprintf(fp, "\n");
     }
+
+    fprintf(fp, "\n");
+    for(i=0; i<n*n+2; i++)
+        fprintf(fp, "%s",separator);
+
+    fprintf(fp, "%s%s%d","Interações",separator,out.interations);
 
     fclose(fp);
 }
@@ -226,13 +266,14 @@ void printmatriz(int n, DataArrays data){
 int main(void){
     setlocale(LC_ALL, "Portuguese");
     DataIn entrada;
+    DataOut saida;
     DataArrays valores_matriz;
 
     entrada = getDataIn();
     valores_matriz = initializeABCD(entrada);
-    //valores_matriz.x = SORModif(valores_matriz,entrada);
+    saida = SORModif(valores_matriz,entrada,50);
     //criando um arquivo CSV na raiz do executável para visualizar a matriz
-    generateCSVMatriz(entrada.NX, valores_matriz, "teste2.csv",";");
+    generateCSVMatriz(entrada.NX, valores_matriz, saida, "teste.csv",";");
     //printmatriz(entrada.NX, valores_matriz);
 
     return 0;

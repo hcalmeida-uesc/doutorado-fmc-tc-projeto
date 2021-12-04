@@ -2,8 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-//casas decimais
-#define DC 8
+//casas decimais dos arquivos de saída
+#define DC 6
 
 /*
     Estrutura para armazenar os dados de entrada
@@ -45,32 +45,44 @@ typedef struct{
     G           - couble
     f           - couble
     m           - couble
-    E (erro)    - couble
+    Err(erro)    - couble
 
 */
 DataIn getDataIn(char* filename){
     DataIn di;
-    FILE* fin;
+    FILE *fin;
+    char *aux;
 
     if((fin=fopen(filename,"r"))==NULL){
         printf("Ero na abertura do arquivo %s",filename);
         exit(-1);
     }
 
-    fscanf(fin,"%d\n", &di.n);
-    fscanf(fin,"%lf\n", &di.w);
-    fscanf(fin,"%lf\n", &di.LX);
-    fscanf(fin,"%lf\n", &di.LY);
-    fscanf(fin,"%lf\n", &di.DT);
-    fscanf(fin,"%lf\n", &di.G);
-    fscanf(fin,"%lf\n", &di.f);
-    fscanf(fin,"%lf\n", &di.m);
-    fscanf(fin,"%lf", &di.Err);
+    fscanf(fin,"%*s %d", &di.n);
+    fscanf(fin,"%*s %lf", &di.w);
+    fscanf(fin,"%*s %lf", &di.LX);
+    fscanf(fin,"%*s %lf", &di.LY);
+    fscanf(fin,"%*s %lf", &di.DT);
+    fscanf(fin,"%*s %lf", &di.G);
+    fscanf(fin,"%*s %lf", &di.f);
+    fscanf(fin,"%*s %lf", &di.m);
+    fscanf(fin,"%*s %lf", &di.Err);
 
     fclose(fin);
 
     di.NX = di.n;
     di.NY = di.n;
+
+    printf("Dados de entrada:\n");
+    printf("NX=NY=n= %d\n", di.n);
+    printf("w= %*lf\n", DC, di.w);
+    printf("LX= %*lf\n", DC, di.LX);
+    printf("LY= %*lf\n", DC, di.LY);
+    printf("DT= %*lf\n", DC, di.DT);
+    printf("G= %*lf\n", DC, di.G);
+    printf("f= %*lf\n", DC, di.f);
+    printf("m= %*lf\n", DC, di.m);
+    printf("Erro= %*lf", DC, di.Err);
 
 
     return di;
@@ -90,11 +102,11 @@ void saveDataOut(char* filename, DataOut dout, int tam){
         exit(-1);
     }
 
-    fprintf(fout,"\nErro alcançado: %10.8lf\n", dout.absErr);
+    fprintf(fout,"\nErro alcançado: %10.*lf\n",DC, dout.absErr);
     fprintf(fout,"Interações: %10d\n", dout.interations);
     fprintf(fout,"\nVetor X:\n");
     for(i=0; i<tam; i++){
-        fprintf(fout,"x(%2d)=%10.8lf\n",i,dout.xkm1[i]);
+        fprintf(fout,"x(%2d)=%10.*lf\n",i,DC,dout.xkm1[i]);
     }
     fprintf(fout,"------------------------------");
     fclose(fout);
@@ -177,7 +189,7 @@ double absoluteError(double* xk, double* xk1, int tam){
     maxErr = fabs(xk1[0]-xk[0]);
 
     for(i=1; i<tam; i++){
-        err = fabs(xk1[1]-xk[1]);
+        err = fabs(xk1[i]-xk[i]);
 
         if(err > maxErr)
             maxErr = err;
@@ -193,7 +205,9 @@ double absoluteError(double* xk, double* xk1, int tam){
 DataOut SORModif(DataArrays da, DataIn in, int maxInterations){
     int i, tam;
     DataOut out;
+    double xk;
 
+    tam = in.n*in.n;
 
     //alocando memória para o vetor x(k) e iniciando com 0
     out.xk = calloc(tam, sizeof(double));
@@ -201,33 +215,32 @@ DataOut SORModif(DataArrays da, DataIn in, int maxInterations){
     //alocando memória para o vetor x(k+1) e iniciando com 0
     out.xkm1 = calloc(tam, sizeof(double));
 
-    tam = in.n*in.n;
 
     out.interations = 0;
-    while(out.interations++ < maxInterations){
+    while(out.interations++ < 10){
 
         // salvando os valores de x(k+1) em x(k) para cálculo do erro da rodada
         for(i=0; i<tam; i++)
             out.xk[i] = out.xkm1[i];
 
         //cálculo da primeira linha - x[0](k+1)
-        out.xkm1[0] = (in.w/da.a[0])*(da.d[0]-da.b[0]*out.xkm1[1] - da.c[0]*out.xkm1[in.NY])-(in.w-1)*out.xkm1[0];
+        out.xkm1[0] = ((in.w-1)*out.xkm1[0])+(in.w/da.a[0])*(da.d[0]-da.b[0]*out.xkm1[1] - da.c[0]*out.xkm1[in.NY]);
 
         //cálculo da segunda até (NX-1)-ésima linha - x[1](k+1) : x[NX-1](k+1)
-        for(i=1; i<in.NX; i++){
-            out.xkm1[i] = (in.w/da.a[i])*(da.d[i]-da.b[i-1]*out.xkm1[i-1] - da.b[i]*out.xkm1[i+1] - da.c[i]*out.xkm1[in.NY+1])-(in.w-1)*out.xkm1[i];
+        for(i=1; i<in.n; i++){
+            out.xkm1[i] = ((in.w-1)*out.xkm1[i])+(in.w/da.a[i])*(da.d[i] - da.b[i-1]*out.xkm1[i-1] - (da.b[i]*out.xkm1[i+1] + da.c[i]*out.xkm1[in.NY+i]));
         }
 
         //cálculo da (NX)-ésima até (NX*NY-NX-1)-ésima linha - x[NX](k+1) : x[NX*NY-NX-1](k+1)
         for(; i<tam-in.n; i++)
-            out.xkm1[i] = (in.w/da.a[i])*(da.d[i]-da.b[i-1]*out.xkm1[i-1] - da.b[i]*out.xkm1[i+1] - da.c[i-in.NY]*out.xkm1[i-in.NY] - da.c[i]*out.xkm1[in.NY+1])-(in.w-1)*out.xkm1[i];
+            out.xkm1[i] = ((in.w-1)*out.xkm1[i])+(in.w/da.a[i])*(da.d[i] - (da.c[i-in.NY]*out.xkm1[i-in.NY]+da.b[i-1]*out.xkm1[i-1]) - (da.b[i]*out.xkm1[i+1]+da.c[i]*out.xkm1[in.NY+i]));
 
         //cálculo da (NX*NY-NX)-ésima até (NX*NY-2)-ésima linha - x[NX*NY-NX](k+1) : x[NX*NY-2](k+1)
         for(; i<tam-1; i++)
-            out.xkm1[i] = (in.w/da.a[i])*(da.d[i]-da.b[i-1]*out.xkm1[i-1] - da.b[i]*out.xkm1[i+1] - da.c[i-in.NY]*out.xkm1[i-in.NY])-(in.w-1)*out.xkm1[i];
+            out.xkm1[i] = ((in.w-1)*out.xkm1[i])+(in.w/da.a[i])*(da.d[i] - (da.c[i-in.NY]*out.xkm1[i-in.NY]+da.b[i-1]*out.xkm1[i-1]) - da.b[i]*out.xkm1[i+1] );
 
         //cálculo da última linha - x[NX*NY-1](k+1)
-        out.xkm1[i] = (in.w/da.a[i])*(da.d[i]-da.b[i-1]*out.xkm1[i-1] - da.c[i-in.NY]*out.xkm1[i-in.NY])-(in.w-1)*out.xkm1[i];
+        out.xkm1[i] = ((in.w-1)*out.xkm1[i])+(in.w/da.a[i])*(da.d[i] - (da.c[i-in.NY]*out.xkm1[i-in.NY]+da.b[i-1]*out.xkm1[i-1])) ;
 
         //calculando o erro e absoluto e saindo do laço caso tenha atingido
         out.absErr = absoluteError(out.xk, out.xkm1, tam);
@@ -235,11 +248,8 @@ DataOut SORModif(DataArrays da, DataIn in, int maxInterations){
 
     }
 
-    out.interations--;
-
     return out;
 }
-
 /*
 *   Para gerar um arquivo CSV com a matriz. Para fins de visualização e teste
 */

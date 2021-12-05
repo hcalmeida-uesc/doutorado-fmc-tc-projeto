@@ -27,7 +27,7 @@ int main(void){
     saveDataOut("saida.txt",saida,entrada.n*entrada.n);
 
     //criando um arquivo CSV (delimitador ';') para visualizar a matriz
-    //generateCSVMatriz(entrada.n, valores_matriz, saida, "teste.csv",";");
+    generateCSVMatriz(entrada.n, valores_matriz, saida, "teste.csv",";");
 
     getchar();
 

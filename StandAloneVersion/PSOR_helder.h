@@ -132,8 +132,7 @@ DataArrays initDiagonals(DataIn in){
     da.d = calloc(tam, sizeof(double));
 
     /*
-        dúvida: os valores de b e c são sempre iguais? precisa criar vetor?
-        Para facilitar a lógica do algoritmo SOR é melhor criar os vetores
+        Inicializando o vetor b , segundo especificação
     */
     aux = -1/((in.LX/in.NX)*(in.LX/in.NX));
     for(i=0; i<tam-1; i++)
@@ -216,28 +215,28 @@ DataOut SORModif(DataArrays da, DataIn in, int maxInterations){
     out.xkm1 = calloc(tam, sizeof(double));
 
 
-    out.interations = 0;
-    while(out.interations++ < 10){
+    out.interations = 1;
+    while(out.interations++ < maxInterations){
 
         // salvando os valores de x(k+1) em x(k) para cálculo do erro da rodada
         for(i=0; i<tam; i++)
             out.xk[i] = out.xkm1[i];
 
         //cálculo da primeira linha - x[0](k+1)
-        out.xkm1[0] = ((1-in.w)*out.xkm1[0])+(in.w/da.a[0])*(da.d[0] - (da.b[0]*out.xkm1[1] + da.c[0]*out.xkm1[in.NY]));
+        out.xkm1[0] = ((1-in.w)*out.xkm1[0])+(in.w/da.a[0])*(da.d[0] - (da.b[0]*out.xk[1] + da.c[0]*out.xk[in.NY]));
 
         //cálculo da segunda até (NX-1)-ésima linha - x[1](k+1) : x[NX-1](k+1)
         for(i=1; i<in.n; i++){
-            out.xkm1[i] = ((1-in.w)*out.xkm1[i])+(in.w/da.a[i])*(da.d[i] - da.b[i-1]*out.xkm1[i-1] - (da.b[i]*out.xkm1[i+1] + da.c[i]*out.xkm1[in.NY+i]));
+            out.xkm1[i] = ((1-in.w)*out.xkm1[i])+(in.w/da.a[i])*(da.d[i] - da.b[i-1]*out.xkm1[i-1] - (da.b[i]*out.xk[i+1] + da.c[i]*out.xk[in.NY+i]));
         }
 
         //cálculo da (NX)-ésima até (NX*NY-NX-1)-ésima linha - x[NX](k+1) : x[NX*NY-NX-1](k+1)
         for(; i<tam-in.n; i++)
-            out.xkm1[i] = ((1-in.w)*out.xkm1[i])+(in.w/da.a[i])*(da.d[i] - (da.c[i-in.NY]*out.xkm1[i-in.NY]+da.b[i-1]*out.xkm1[i-1]) - (da.b[i]*out.xkm1[i+1]+da.c[i]*out.xkm1[in.NY+i]));
+            out.xkm1[i] = ((1-in.w)*out.xkm1[i])+(in.w/da.a[i])*(da.d[i] - (da.c[i-in.NY]*out.xkm1[i-in.NY]+da.b[i-1]*out.xkm1[i-1]) - (da.b[i]*out.xk[i+1]+da.c[i]*out.xk[in.NY+i]));
 
         //cálculo da (NX*NY-NX)-ésima até (NX*NY-2)-ésima linha - x[NX*NY-NX](k+1) : x[NX*NY-2](k+1)
         for(; i<tam-1; i++)
-            out.xkm1[i] = ((1-in.w)*out.xkm1[i])+(in.w/da.a[i])*(da.d[i] - (da.c[i-in.NY]*out.xkm1[i-in.NY]+da.b[i-1]*out.xkm1[i-1]) - da.b[i]*out.xkm1[i+1] );
+            out.xkm1[i] = ((1-in.w)*out.xkm1[i])+(in.w/da.a[i])*(da.d[i] - (da.c[i-in.NY]*out.xkm1[i-in.NY]+da.b[i-1]*out.xkm1[i-1]) - da.b[i]*out.xk[i+1] );
 
         //cálculo da última linha - x[NX*NY-1](k+1)
         out.xkm1[i] = ((1-in.w)*out.xkm1[i])+(in.w/da.a[i])*(da.d[i] - (da.c[i-in.NY]*out.xkm1[i-in.NY]+da.b[i-1]*out.xkm1[i-1])) ;

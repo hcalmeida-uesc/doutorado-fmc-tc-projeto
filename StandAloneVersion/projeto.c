@@ -18,14 +18,16 @@ int main(void){
     DataOut saida;
     DataArrays valores_matriz;
 
+    entrada = getDataIn("entrada.txt");
+
     valores_matriz = initDiagonals(entrada);
 
     saida = SORModif(valores_matriz,entrada,50);
 
-    saveDataOut("saida2.txt",saida,entrada.n*entrada.n);
+    saveDataOut("saida.txt",saida,entrada.n*entrada.n);
 
     //criando um arquivo CSV (delimitador ';') para visualizar a matriz
-    generateCSVMatriz(entrada.n, valores_matriz, saida, "teste.csv",";");
+    //generateCSVMatriz(entrada.n, valores_matriz, saida, "teste.csv",";");
 
     getchar();
 

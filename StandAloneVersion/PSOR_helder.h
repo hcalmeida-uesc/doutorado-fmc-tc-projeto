@@ -224,23 +224,23 @@ DataOut SORModif(DataArrays da, DataIn in, int maxInterations){
             out.xk[i] = out.xkm1[i];
 
         //cálculo da primeira linha - x[0](k+1)
-        out.xkm1[0] = ((in.w-1)*out.xkm1[0])+(in.w/da.a[0])*(da.d[0]-da.b[0]*out.xkm1[1] - da.c[0]*out.xkm1[in.NY]);
+        out.xkm1[0] = ((1-in.w)*out.xkm1[0])+(in.w/da.a[0])*(da.d[0] - (da.b[0]*out.xkm1[1] + da.c[0]*out.xkm1[in.NY]));
 
         //cálculo da segunda até (NX-1)-ésima linha - x[1](k+1) : x[NX-1](k+1)
         for(i=1; i<in.n; i++){
-            out.xkm1[i] = ((in.w-1)*out.xkm1[i])+(in.w/da.a[i])*(da.d[i] - da.b[i-1]*out.xkm1[i-1] - (da.b[i]*out.xkm1[i+1] + da.c[i]*out.xkm1[in.NY+i]));
+            out.xkm1[i] = ((1-in.w)*out.xkm1[i])+(in.w/da.a[i])*(da.d[i] - da.b[i-1]*out.xkm1[i-1] - (da.b[i]*out.xkm1[i+1] + da.c[i]*out.xkm1[in.NY+i]));
         }
 
         //cálculo da (NX)-ésima até (NX*NY-NX-1)-ésima linha - x[NX](k+1) : x[NX*NY-NX-1](k+1)
         for(; i<tam-in.n; i++)
-            out.xkm1[i] = ((in.w-1)*out.xkm1[i])+(in.w/da.a[i])*(da.d[i] - (da.c[i-in.NY]*out.xkm1[i-in.NY]+da.b[i-1]*out.xkm1[i-1]) - (da.b[i]*out.xkm1[i+1]+da.c[i]*out.xkm1[in.NY+i]));
+            out.xkm1[i] = ((1-in.w)*out.xkm1[i])+(in.w/da.a[i])*(da.d[i] - (da.c[i-in.NY]*out.xkm1[i-in.NY]+da.b[i-1]*out.xkm1[i-1]) - (da.b[i]*out.xkm1[i+1]+da.c[i]*out.xkm1[in.NY+i]));
 
         //cálculo da (NX*NY-NX)-ésima até (NX*NY-2)-ésima linha - x[NX*NY-NX](k+1) : x[NX*NY-2](k+1)
         for(; i<tam-1; i++)
-            out.xkm1[i] = ((in.w-1)*out.xkm1[i])+(in.w/da.a[i])*(da.d[i] - (da.c[i-in.NY]*out.xkm1[i-in.NY]+da.b[i-1]*out.xkm1[i-1]) - da.b[i]*out.xkm1[i+1] );
+            out.xkm1[i] = ((1-in.w)*out.xkm1[i])+(in.w/da.a[i])*(da.d[i] - (da.c[i-in.NY]*out.xkm1[i-in.NY]+da.b[i-1]*out.xkm1[i-1]) - da.b[i]*out.xkm1[i+1] );
 
         //cálculo da última linha - x[NX*NY-1](k+1)
-        out.xkm1[i] = ((in.w-1)*out.xkm1[i])+(in.w/da.a[i])*(da.d[i] - (da.c[i-in.NY]*out.xkm1[i-in.NY]+da.b[i-1]*out.xkm1[i-1])) ;
+        out.xkm1[i] = ((1-in.w)*out.xkm1[i])+(in.w/da.a[i])*(da.d[i] - (da.c[i-in.NY]*out.xkm1[i-in.NY]+da.b[i-1]*out.xkm1[i-1])) ;
 
         //calculando o erro e absoluto e saindo do laço caso tenha atingido
         out.absErr = absoluteError(out.xk, out.xkm1, tam);
